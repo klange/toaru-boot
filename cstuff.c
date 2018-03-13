@@ -9,6 +9,8 @@
 #include "elf.h"
 #include "multiboot.h"
 
+static char * _ramdisk = "RAMDISK.IMG";
+
 static int read_scancode(void) {
 	while (!(inportb(0x64) & 1));
 	int out;
@@ -253,7 +255,7 @@ done:
 			}
 			print("Done.\n");
 			restore_root();
-			if (navigate("RAMDISK.IMG")) {
+			if (navigate(_ramdisk)) {
 				print("Loading ramdisk...\n");
 				ramdisk_off = KERNEL_LOAD_START + offset;
 				ramdisk_len = dir_entry->extent_length_LSB;
@@ -278,7 +280,7 @@ done:
 	return;
 }
 
-static int sel_max = 11;
+static int sel_max = 12;
 static int sel = 0;
 
 void toggle(int ndx, int value, char *str) {
@@ -334,6 +336,9 @@ int kmain() {
 		toggle(9, _sound, "Enable audio drivers.");
 		toggle(10,_net, "Enable network drivers.");
 
+		attr = sel == 11 ? 0x70 : 0x07;
+		print_("     Boot base ToaruOS image.");
+
 		attr = 0x07;
 		print_("\n\n\n");
 		print_banner("Press <Enter> or select a menu option with \030/\031.");
@@ -350,7 +355,7 @@ int kmain() {
 			sel = (sel_max + sel - 1)  % sel_max;
 			continue;
 		} else if (s == 0x1c) {
-			if (sel == 0 || sel == 1) {
+			if (sel == 0 || sel == 1 || sel == 11) {
 				boot_mode = sel;
 				break;
 			} else if (sel == 2) {
@@ -380,6 +385,9 @@ int kmain() {
 		multiboot_header.cmdline = (uintptr_t)"vid=auto,1024,768 root=/dev/ram0,nocache start=session";
 	} else if (boot_mode == 1) {
 		multiboot_header.cmdline = (uintptr_t)"root=/dev/ram0,nocache start=--vga";
+	} else if (boot_mode == 11) {
+		multiboot_header.cmdline = (uintptr_t)"vid=auto,1024,768 init=/dev/ram0 _start=live-welcome";
+		_ramdisk = "NETB.";
 	}
 
 	if (!_normal_ata) {
